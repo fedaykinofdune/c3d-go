@@ -1,11 +1,8 @@
-
 //websockets
-window.onload = function(){
-    window.state = {};
-}
     
 window.onload = function(){
-    window.state = {}
+    window.state = {} // {"addr":"value"}
+
     window.socket = new WebSocket('ws://localhost:9099/socket');
 
     socket.onopen = function(event) {
@@ -20,9 +17,9 @@ window.onload = function(){
 
     socket.onmessage = function(msg){
         msg = JSON.parse(msg.data);
-        data = msg["data"]
+        data = msg["Data"]
             
-        var response = msg["response"];
+        var response = msg["Response"];
         if (response == "transact")
             respond_transact(data);
         else if (response == "get_accounts")
@@ -33,7 +30,6 @@ window.onload = function(){
             respond_subscribe_accounts(data);
         else if (response == "subscribe_storage")
             respond_subscribe_storage(data);
-
     }
 }
 
@@ -41,20 +37,28 @@ window.onload = function(){
 function respond_transact(data){
     success = data["success"];
     id = data["id"];
+    contract = data["contract"];
+    addr = data["addr"];
     console.log("succcess", success, " id", id);
+    if (contract == "true"){
+        var l = document.createElement("LI");
+        l.innerHTML = addr;
+        document.getElementById("contract_list").appendChild(l);
+    }
 }
+
 
 function respond_get_accounts(data){
     for (var key in data){
         window.state[key] = data[key]
     }
-
     accounts = document.getElementById("accounts_dropdown");
     for (i=0; i<accounts.options.length; i++){
         accounts.options[i].value = state[accounts.options[i].innerHTML]
     }
     update_account()
 }
+
 
 function update_account(){
     dd = document.getElementById("accounts_dropdown");
@@ -63,12 +67,19 @@ function update_account(){
     document.getElementById("addr").innerHTML = "Current Address: " + addr;
     document.getElementById("value").innerHTML = "Value: " + value;
     document.getElementById("from_addr").value = addr;
+    return addr
 }
 
-
+function change_account(){
+    var addr = update_account();
+    // set sender (from_addr)  
+    document.forms["transact_form"].elements['from_addr'].value = addr;
+    document.forms["create_contract_form"].elements['from_addr'].value = addr;
+}
 
 function respond_get_storage(data){
-
+    console.log(data)
+    console.log(data["value"])
 }
 
 function respond_subscribe_accounts(data){
@@ -79,14 +90,20 @@ function respond_subscribe_storage(data){
 
 }
 
-function send_tx(){
-    var a = document.forms['transact_form'].getElementsByTagName('input');
+function make_request(form_name){
+    var a = document.forms[form_name].getElementsByTagName('input');
     var j = {};
-    j["method"] = "transact";
+    if (form_name == "storage_lookup")
+        j["method"] = "get_storage";
+    else
+        j["method"] = "transact";
     j["args"] = {};
     for (i=0;i<a.length;i++){
         j["args"][a[i].name] = a[i].value;
     }
+    console.log(j);
+    console.log(j["args"]);
+
     socket.send(JSON.stringify(j));
     return false;
 }

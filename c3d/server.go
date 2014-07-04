@@ -10,7 +10,7 @@ import (
     "strings"
     "log"
     "encoding/json"
-    "os"
+    "strconv"
 )
 
 type account struct{
@@ -163,7 +163,8 @@ func (s *Session) webSocketHandler(ws *websocket.Conn){
             } else if m["method"] == "get_accounts"{
                 s.handleGetAccounts(ws)
             } else if m["method"] == "get_storage"{
-                a := m["args"].(map[string]string)
+                a := m["args"].(map[string]interface{})
+                log.Println(a)
                 s.handleGetStorage(ws, a)
             }
     }
@@ -180,13 +181,18 @@ func (s *Session) webSocketHandler(ws *websocket.Conn){
                 - subscribe_stores : {[{"addr", "storage"}, {"addr", "storage"}, ...] }
         - Server Response : {"response" : ... , "data" : {   }}
             - Responses
-                - transact : {"success", "txid"}
+                - transact : {"success", "txid", "contract", "addr"}
                 - get_accounts : {"addr":"value", "addr":"value", ... ]}
                 - get_storage : {"value"}
             - Notifies
                 - subscribe_accounts {}
                 - subscribe stores {}
 */
+
+type Response struct{
+    Response string
+    Data map[string]string
+}
 
 func (s *Session) accountsReactor(){
     ch := make(chan ethutil.React)
@@ -204,15 +210,17 @@ func (s *Session) accountsReactor(){
     }()
 }
 
+
 func (s *Session) handleGetAccounts(ws *websocket.Conn){
-    acc := make(map[string]interface{}) //addr:value
-    acc["response"] = "get_accounts"
-    acc["data"] = make(map[string]string)
+    acc := Response{Response:"get_accounts", Data:make(map[string]string)} //make(map[string]interface{}) //addr:value
     for _, a := range s.Accounts{
-        (acc["data"]).(map[string]string)[a.Addr] = a.Value
+        acc.Data[a.Addr] = a.Value
     }
     by, _ := json.Marshal(acc)
-    websocket.Message.Send(ws, string(by))
+
+    if ws != nil{
+        websocket.Message.Send(ws, string(by))
+    }
 }
 
 func (s *Session) handleTransact(ws *websocket.Conn, tx map[string]interface{}){
@@ -221,35 +229,51 @@ func (s *Session) handleTransact(ws *websocket.Conn, tx map[string]interface{}){
         amount := tx["amount"].(string)
         gas := tx["gas"].(string)
         gasP := tx["gasprice"].(string)
+        data := tx["data"].(string)
         acc_num := (*s).AccountMap[from]
         priv := (*s).Accounts[acc_num].Priv
         log.Println(recipient, amount, gas, gasP, from, acc_num)
-        p, err := (*s).peth.Transact(ethutil.Hex(priv), recipient, amount, gas, gasP, "")
-        if err != nil{
-            log.Println(err)
+
+        var p *ethpub.PReceipt
+        var err error
+        if recipient == ""{
+            p, err = (*s).peth.Create(ethutil.Hex(priv), amount, gas, gasP, data)
+            if err != nil{
+                log.Println(err)
+            }
+        } else{
+            p, err = (*s).peth.Transact(ethutil.Hex(priv), recipient, amount, gas, gasP, data)
+            if err != nil{
+                log.Println(err)
+            }
         }
         // how do I know if a tx fails?
-        resp := make(map[string]interface{})
-        resp["response"] = "transact"
-        resp["data"] = make(map[string]string)
-        resp["data"].(map[string]string)["success"] = "true"
-        resp["data"].(map[string]string)["id"] = p.Hash
+        resp := Response{Response:"transact", Data:make(map[string]string)}
+        resp.Data["success"] = "true"
+        resp.Data["id"] = p.Hash
+        resp.Data["contract"] = strconv.FormatBool(p.CreatedContract)
+        resp.Data["addr"] = p.Address
         by, _ := json.Marshal(resp)
         websocket.Message.Send(ws, string(by))
 }
 
-func (s *Session) handleGetStorage(ws *websocket.Conn, args map[string]string){
-    addr := args["addr"]
-    storage := args["storage"]
+func (s *Session) handleGetStorage(ws *websocket.Conn, args map[string]interface{}){
+    resp := Response{Response:"get_storage", Data:make(map[string]string)}
+    addr := args["contract_addr"].(string)
+    storage := args["storage_addr"].(string)
     val := GetStorageAt(s.peth, addr, storage)
-    websocket.Message.Send(ws, val)
+    log.Println(addr, storage, val)
+    resp.Data["addr"] = addr
+    resp.Data["storage"] = storage
+    resp.Data["value"] = val
+    by, _ := json.Marshal(resp)
+    websocket.Message.Send(ws, string(by))
 }
 
 func StartServer(peth *ethpub.PEthereum, ethereum *eth.Ethereum){
     sesh := loadSession(peth, ethereum)
     conf := loadConfig(peth)
     sesh.accountsReactor()
-    os.Exit(0)
     http.HandleFunc("/assets/", sesh.serveFile)
     http.HandleFunc("/", sesh.handleIndex)
     //http.HandleFunc("/transact", sesh.handleTransact)

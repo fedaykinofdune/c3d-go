@@ -19,7 +19,7 @@
 <select id="accounts_dropdown">
 {{ range $acc := .Accounts }}
     <!--option value="{{$acc.Addr}}" onselect="document.getElementById('value').innerHTML='$acc.Value';">{{$acc.Addr}}</option-->
-    <option value="{{$acc.Value}}" onclick="update_account();">{{$acc.Addr}}</option>
+    <option value="{{$acc.Value}}" onclick="change_account();">{{$acc.Addr}}</option>
 {{ end }}
 </select>
 <p id="addr">Current Address: {{(index .Accounts 0).Addr}}
@@ -31,22 +31,35 @@
     <p>Amount: <input name="amount"></input>
     <p>Gas: <input name="gas" value="500"></input>
     <p>GasPrice: <input name="gasprice" value="1000"></input>
+    <p>Data: <input name="data" value=""></input>
     <input id="from_addr" name="from_addr" type="hidden" value="{{(index .Accounts 0).Addr}}"></input>
-    <p><button type="button" onclick="send_tx()">Transact</button>
+    <p><button type="button" onclick="make_request('transact_form')">Transact</button>
+</form>
+
+<h3>Create Contract</h3>
+<form id="create_contract_form" name="create_contract">
+    <p>Amount: <input name="amount"></input>
+    <p>Gas: <input name="gas" value="5000"></input>
+    <p>GasPrice: <input name="gasprice" value="1000000"></input>
+    <p>Code: <input name="data" value="this.store[0]=0x5" type="textbox"></input>
+    <input id="from_addr" name="from_addr" type="hidden" value="{{(index .Accounts 0).Addr}}"></input>
+    <input id="recipient" name="recipient" type="hidden" value=""></input>
+    <p><button type="button" onclick="make_request('create_contract_form')">Transact</button>
 </form>
 
 
 <h3>Torrent Downloads</h3>
 
-
-
 <h3>Storage Lookup</h3>
-<form name="storage_lookup" method="post", action="/">
+<form name="storage_lookup">
     <p>Contract Address: <input name="contract_addr">
     <p>Storage Address: <input name="storage_addr">
-    <p><input type="submit" value="Run Lookup">
+    <p><button type="button" onclick="make_request('storage_lookup');">Run Lookup</button>
 </form>
 
+<h3>Contracts</h3>
+<ul id="contract_list">
+</ul>
 
 
 
