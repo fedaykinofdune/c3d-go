@@ -1,7 +1,6 @@
 <head>
 <link type="text/css" rel="stylesheet" href="assets/css/style.css">
-<script type="text/javascript" src="assets/js/ajax.js?version=271"></script>
-<script type="text/javascript" src="assets/js/callback.js"></script>
+<script type="text/javascript" src="assets/js/sockets.js?version=271"></script>
 <script>
     var acc = {{(index .Accounts 0).Addr}};
     function changeAcc(addr, value){
@@ -14,11 +13,13 @@
 </head>
 <h1>c3d Browser</h1>
 
+<h2 id="websock">No connection yet...</h2>
+
 <h3>Accounts:</h3>
-<select>
+<select id="accounts_dropdown">
 {{ range $acc := .Accounts }}
     <!--option value="{{$acc.Addr}}" onselect="document.getElementById('value').innerHTML='$acc.Value';">{{$acc.Addr}}</option-->
-    <option value="{{$acc.Addr}}" onclick="changeAcc({{$acc.Addr}}, {{$acc.Value}});">{{$acc.Addr}}</option>
+    <option value="{{$acc.Value}}" onclick="update_account();">{{$acc.Addr}}</option>
 {{ end }}
 </select>
 <p id="addr">Current Address: {{(index .Accounts 0).Addr}}
@@ -31,7 +32,7 @@
     <p>Gas: <input name="gas" value="500"></input>
     <p>GasPrice: <input name="gasprice" value="1000"></input>
     <input id="from_addr" name="from_addr" type="hidden" value="{{(index .Accounts 0).Addr}}"></input>
-    <p><input type="submit" name="submit" value="Transact" onclick="send_tx()">
+    <p><button type="button" onclick="send_tx()">Transact</button>
 </form>
 
 

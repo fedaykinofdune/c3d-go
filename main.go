@@ -51,7 +51,7 @@ func main() {
     // if there are more keys, having 0 balance, funds will be transfered to them
     c3d.LoadKeys(*c3d.KeyFile)
 
-    go c3d.StartServer(peth)
+    go c3d.StartServer(peth, ethereum)
 
     // start mining
     utils.StartMining(ethereum)
