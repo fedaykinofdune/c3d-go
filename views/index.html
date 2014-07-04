@@ -15,52 +15,74 @@
 
 <h2 id="websock">No connection yet...</h2>
 
-<h3>Accounts:</h3>
-<select id="accounts_dropdown">
-{{ range $acc := .Accounts }}
-    <!--option value="{{$acc.Addr}}" onselect="document.getElementById('value').innerHTML='$acc.Value';">{{$acc.Addr}}</option-->
-    <option value="{{$acc.Value}}" onclick="change_account();">{{$acc.Addr}}</option>
-{{ end }}
-</select>
-<p id="addr">Current Address: {{(index .Accounts 0).Addr}}
-<p id="value">Value:{{(index .Accounts 0).Value}}</p>
+<div id="accounts_div">
+    <h3>Accounts:</h3>
+    <select id="accounts_dropdown">
+    {{ range $acc := .Accounts }}
+        <!--option value="{{$acc.Addr}}" onselect="document.getElementById('value').innerHTML='$acc.Value';">{{$acc.Addr}}</option-->
+        <option value="{{$acc.Value}}" onclick="change_account();">{{$acc.Addr}}</option>
+    {{ end }}
+    </select>
+    <p id="addr">Current Address: {{(index .Accounts 0).Addr}}
+    <p id="value">Value:{{(index .Accounts 0).Value}}</p>
+</div>
 
+<div id="transact_div">
 <h3>Transact</h3>
-<form id="transact_form" name="transact">
-    <p>Recipient: <input name="recipient"></input>
-    <p>Amount: <input name="amount"></input>
-    <p>Gas: <input name="gas" value="500"></input>
-    <p>GasPrice: <input name="gasprice" value="1000"></input>
-    <p>Data: <input name="data" value=""></input>
-    <input id="from_addr" name="from_addr" type="hidden" value="{{(index .Accounts 0).Addr}}"></input>
-    <p><button type="button" onclick="make_request('transact_form')">Transact</button>
-</form>
+    <form id="transact_form" name="transact">
+        <p>Recipient: <input name="recipient"></input>
+        <p>Amount: <input name="amount"></input>
+        <p>Gas: <input name="gas" value="500"></input>
+        <p>GasPrice: <input name="gasprice" value="1000"></input>
+        <p>Data: <input name="data" value=""></input>
+        <input id="from_addr" name="from_addr" type="hidden" value="{{(index .Accounts 0).Addr}}"></input>
+        <p><button type="button" onclick="make_request('transact_form')">Transact</button>
+    </form>
+</div>
 
-<h3>Create Contract</h3>
-<form id="create_contract_form" name="create_contract">
-    <p>Amount: <input name="amount"></input>
-    <p>Gas: <input name="gas" value="5000"></input>
-    <p>GasPrice: <input name="gasprice" value="1000000"></input>
-    <p>Code: <input name="data" value="this.store[0]=0x5" type="textbox"></input>
-    <input id="from_addr" name="from_addr" type="hidden" value="{{(index .Accounts 0).Addr}}"></input>
-    <input id="recipient" name="recipient" type="hidden" value=""></input>
-    <p><button type="button" onclick="make_request('create_contract_form')">Transact</button>
-</form>
+<div id="create_div">
+    <h3>Create Contract</h3>
+    <form id="create_contract_form" name="create_contract">
+        <p>Amount: <input name="amount"></input>
+        <p>Gas: <input name="gas" value="5000"></input>
+        <p>GasPrice: <input name="gasprice" value="1000000"></input>
+        <p>Code: <input name="data" value="this.store[0]=0x5" type="textbox"></input>
+        <input id="from_addr" name="from_addr" type="hidden" value="{{(index .Accounts 0).Addr}}"></input>
+        <input id="recipient" name="recipient" type="hidden" value=""></input>
+        <p><button type="button" onclick="make_request('create_contract_form')">Transact</button>
+    </form>
+</div>
 
+<div id="downloads_div">
+    <h3>Torrent Downloads</h3>
+</div>
 
-<h3>Torrent Downloads</h3>
+<div id="storage_div">
+    <h3>Storage Lookup</h3>
+    <form name="storage_lookup">
+        <p>Contract Address: <input name="contract_addr">
+        <p>Storage Address: <input name="storage_addr">
+        <p><button type="button" onclick="make_request('storage_lookup');">Run Lookup</button>
+    </form>
+    <p id="storage_at_value">Value: </p>
+</div>
 
-<h3>Storage Lookup</h3>
-<form name="storage_lookup">
-    <p>Contract Address: <input name="contract_addr">
-    <p>Storage Address: <input name="storage_addr">
-    <p><button type="button" onclick="make_request('storage_lookup');">Run Lookup</button>
-</form>
+<div id="contract_list">
+    <h3>Contracts</h3>
+    <ul id="contract_list">
+    </ul>
+</div>
 
-<h3>Contracts</h3>
-<ul id="contract_list">
-</ul>
+<h3>Chat</h3>
+<div id="chat_div" style="overflow:auto; height:200px">
 
+</div>
+<div id="chat_send" style="overflow:auto">
+    <form action="javascript:void(0);"  onsubmit="send_chat_msg();">
+        <input type="textbox" id="chat_send_txt">
+        <input type="button" value="Send">
+    </form>
+</div>
 
 
 

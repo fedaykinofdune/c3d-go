@@ -33,9 +33,14 @@ type Session struct{
     AccountMap map[string]int //map from addr to account number
     Contracts []account
     Torrents []torrent
+
+    Chat *Chat
+
     peth *ethpub.PEthereum
     ethereum *eth.Ethereum
-    websocket *websocket.Conn 
+
+    ethWebSocket *websocket.Conn 
+    chatWebSocket *websocket.Conn
 }
 
 type Config struct{
@@ -94,8 +99,10 @@ func loadSession(peth *ethpub.PEthereum, ethereum *eth.Ethereum) *Session {
         (*session).Accounts = append((*session).Accounts, ac)
         (*session).AccountMap[addr] = i
      }
-     session.websocket = nil
+     session.ethWebSocket = nil
+     session.chatWebSocket = nil
      session.ethereum = ethereum
+     session.Chat = &Chat{}
     return session
 }
 
@@ -142,20 +149,55 @@ func (s *Session) serveFile(w http.ResponseWriter, r *http.Request){
     }
 }
 
-func (s *Session) webSocketHandler(ws *websocket.Conn){
+/*
+    Chat API spec:
+        - "start_chat" : no params
+        - "connect_peers" : ["addr", "addr", ...]
+        - "send_msg" : {"to", "msg"}
+*/
+
+func (s *Session) chatSocketHandler(ws *websocket.Conn){
     var in []byte
-    if s.websocket == nil{
-        s.websocket = ws
+    if s.chatWebSocket == nil{
+        s.chatWebSocket = ws
+        s.Chat.ws = ws
     }
     for{
+        var f interface{}
+        err := websocket.Message.Receive(ws, &in)
+        if err != nil{
+            log.Println(err)
+        }
+        err = json.Unmarshal(in, &f)
+        m := f.(map[string]interface{})
+        if m["method"] == "start_chat"{
+            go s.Chat.StartChat()
+        } else if m["method"] == "connect_new_peer"{
+           peer := m["data"].(string)
+           s.Chat.ConnectPeers([]string{peer}) 
+        } else if m["method"] == "send_msg"{
+            data := m["data"].(map[string]interface{})
+            to := data["to"].(string)
+            msg := data["msg"].(string)
+            s.Chat.WritePeer(to, msg)
+
+
+        } 
+    }
+}
+
+func (s *Session) ethereumSocketHandler(ws *websocket.Conn){
+    var in []byte
+    if s.ethWebSocket == nil{
+        s.ethWebSocket = ws
+    }
+    for{
+            var f interface{} // for marshaling bytes from socket through json
             err := websocket.Message.Receive(ws, &in)
             if err != nil{
                 log.Println(err)
             }
-            log.Println(string(in))
-            var f interface{}
             err = json.Unmarshal(in, &f)
-            log.Println(f)
             m := f.(map[string]interface{})
             if m["method"] == "transact"{
                 a := m["args"].(map[string]interface{})
@@ -164,7 +206,6 @@ func (s *Session) webSocketHandler(ws *websocket.Conn){
                 s.handleGetAccounts(ws)
             } else if m["method"] == "get_storage"{
                 a := m["args"].(map[string]interface{})
-                log.Println(a)
                 s.handleGetStorage(ws, a)
             }
     }
@@ -203,9 +244,8 @@ func (s *Session) accountsReactor(){
     go func(){
         for {
             _ = <- ch
-            log.Println("received signal!")
             updateSession(s)
-            s.handleGetAccounts(s.websocket)
+            s.handleGetAccounts(s.ethWebSocket)
         }
     }()
 }
@@ -278,6 +318,7 @@ func StartServer(peth *ethpub.PEthereum, ethereum *eth.Ethereum){
     http.HandleFunc("/", sesh.handleIndex)
     //http.HandleFunc("/transact", sesh.handleTransact)
     http.HandleFunc("/config", conf.handleConfig)
-    http.Handle("/socket", websocket.Handler(sesh.webSocketHandler))
+    http.Handle("/chat", websocket.Handler(sesh.chatSocketHandler))
+    http.Handle("/ethereum", websocket.Handler(sesh.ethereumSocketHandler))
     http.ListenAndServe(":9099", nil)
 }

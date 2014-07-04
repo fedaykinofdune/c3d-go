@@ -31,6 +31,8 @@ var (
     EthLogFile = flag.String("ethLogFile", "", "ethereum logging file. Defaults to stdout")
     EthPort = flag.String("ethPort", "30303", "ethereum listen port")
     TransmissionPort = flag.String("transmissionPort", "9091", "transmission rpc port")
+    ChatPort = flag.String("chatPort", "9100", "p2p websocket chat port")
+    Mine = flag.Bool("mine", false, "start mining ethereum blocks")
 )
 
 func Init(){

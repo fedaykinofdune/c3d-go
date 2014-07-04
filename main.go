@@ -54,7 +54,9 @@ func main() {
     go c3d.StartServer(peth, ethereum)
 
     // start mining
-    utils.StartMining(ethereum)
+    if *c3d.Mine{
+        utils.StartMining(ethereum)
+    }
 
     // checks if any addrs have 0 balance, tops them up
     c3d.CheckZeroBalance(peth)
