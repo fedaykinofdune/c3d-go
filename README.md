@@ -33,10 +33,14 @@ Now, grab c3d-go: `go get github.com/project-douglas/c3d-go`. That will install 
 
 We're using a custom blockchain with two addresses and lots of funds in each.  The keys are in `keys.txt` and both are loaded. You can get a new key with `c3d-go --newKey`.  The next time `c3d-go` starts, it will send the new address funds from a genesis addr. See `flags.go` for all the options.
 
+To mine, `c3d-go --mine`. The difficulty is low, the logging level high.  
+
+To play with the chat feature, `go get github.com/ebuchman/p2p_go` and run `p2p_go` in another terminal window. Once you start `c3d` and load the webapp, chat will start.
+
 
 ## Features
 
-c3d-go doesn't do much yet.  It stores an infohash in a contract, waits for it to be mined, grabs the infohash from the blockchain, and throws it into the torrent client.  You can monitor the torrent client at `http://localhost:9091`. A webapp (`http://localhost:9099`) is in the works that will make c3d much more fun :)
+c3d-go doesn't do much yet.  It stores an infohash in a contract, waits for it to be mined, grabs the infohash from the blockchain, and throws it into the torrent client.  You can monitor the torrent client at `http://localhost:9091`. A webapp (`http://localhost:9099`) is in the works. She is a bare bones interface for doing ethereum things (txs, contract creation, storage lookup), and now also contains a barebones implementation of p2p chat, soon to be encrypted and using blockchain for authentication.
 
 Stay tuned ...
 
