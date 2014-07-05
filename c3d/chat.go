@@ -7,6 +7,58 @@ import (
     "code.google.com/p/go.net/websocket"    
 )
 
+/*
+P2P Chat with blockchain based authentication
+- how do Alice and Bob exchange ip:ports to establish a chat session? Alice encrypts her ip:port with bobs public key, sends to bobs addr in tx. Bob decrypts, contacts alice
+- this allows us to establish connections to online friends, but basically you have to ping all your friends like this every time you come online to see who else is online (though we can cache addresses and automatically try them at startup)
+
+- once we have peer connections, we can build conversations.
+- communication with byte streams: "method" (1 byte), "convo_id" (31 bytes), "data" (arbitrary) 
+    - methods:
+        - handshake ...
+        - "msg" : length of message (1 byte), message (N bytes)
+        - "invite" : number of peers (1 bytes), peers (N*6 bytes)
+        - "join" : empty
+
+- "invite" is sent to request that a peer joins a conversation. That peer will first make sure they are connected to all peers in the convo, and then send each a "join" msg with the convo id. Receivers of a "join" message will add the sender to the appropriate convo. The convo history can be cached and uplodaed via bittorrent.
+
+- we make a single tcp connection to each peer, and establish a symmetric key for that session
+- each conversation has a single symmetric key for encryption
+- "method" and "convo_id" are encrypted (together) with the symmetric key for the peer
+- for "invite", the entire thing is encrypted with the symmetric key for the peer
+- messages are encrypted with the symmetric key for the convo
+*/
+
+
+type Peer struct{
+    nick string // nickname
+    addr string // ip:port
+    pubkey []byte // public key
+    symkey []byte // symmetric key
+    conn net.Conn // tcp sockey
+    write_ch chan []byte // write stream of bytes to peer
+    quit bool
+}
+
+type Conversation struct{
+    Peers map[string]Peer // peers in the conversation
+    write_ch chan string // input from me on this conversation (write to peers)
+    read_ch chan string // input from peers in this conversation (read from peers)
+    key []byte // conversation key
+}
+
+type Chat struct{
+    peer_ch chan net.Conn // new peers from listenServer
+    quit_ch chan Peer // quit a peer
+    write_ch chan string // input from me (write to peers)
+    read_ch chan string // input from peers (read from peers)
+    Peers map[string]Peer // {"ip:port" : Peer}
+    Conversations []Conversation // list of active conversations
+    ws *websocket.Conn // websocket for writing straight to browser
+    started bool
+}
+
+
 // listen on port. Accept connections.  Broadcast new connection on peer_channel (dealt with by PeerManager)
 func (c *Chat) listenServer(){
     ln, err := net.Listen("tcp", ":"+*ChatPort)
@@ -25,15 +77,6 @@ func (c *Chat) listenServer(){
     }
 }
 
-// each peer has a read_ch for reading messages in from that peer and a write chan for writing out
-// broadcast loops through all of them and sends the same message
-type Peer struct{
-    nick string
-    addr string
-    conn net.Conn
-    write_ch chan []byte
-    quit bool
-}
 
 func (c *Chat) readPeer(me *Peer){
     buf := make([]byte, 1024)
@@ -150,27 +193,21 @@ func (c *Chat) peerManager(){
     }
 }
 
-type Chat struct{
-    peer_ch chan net.Conn
-    quit_ch chan Peer
-    write_ch chan string
-    read_ch chan string
-    Peers map[string]Peer
-    ws *websocket.Conn
-}
-
 func (c *Chat) StartChat(){
-    c.peer_ch = make(chan net.Conn) // for serving new peers from the tcpServer
-    defer close(c.peer_ch)
-    c.quit_ch = make(chan Peer) // signal to close a peer
-    defer close(c.quit_ch)
-    c.write_ch = make(chan string) // :/c.
-    defer close(c.write_ch)
-    c.read_ch = make(chan string) // input from stdin
-    defer close(c.read_ch)
+    if !c.started{
+        c.started = true
+        c.peer_ch = make(chan net.Conn) // for serving new peers from the tcpServer
+        defer close(c.peer_ch)
+        c.quit_ch = make(chan Peer) // signal to close a peer
+        defer close(c.quit_ch)
+        c.write_ch = make(chan string) // :/c.
+        defer close(c.write_ch)
+        c.read_ch = make(chan string) // input from stdin
+        defer close(c.read_ch)
 
-    c.Peers = make(map[string]Peer)
+        c.Peers = make(map[string]Peer)
 
-    go c.listenServer()
-    c.peerManager()
+        go c.listenServer()
+        c.peerManager()
+    }
 }

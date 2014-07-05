@@ -1,6 +1,7 @@
 <head>
 <link type="text/css" rel="stylesheet" href="assets/css/style.css">
 <script type="text/javascript" src="assets/js/sockets.js?version=271"></script>
+<script type="text/javascript" src="assets/js/chat.js?version=271"></script>
 <script>
     var acc = {{(index .Accounts 0).Addr}};
     function changeAcc(addr, value){
@@ -73,7 +74,9 @@
     </ul>
 </div>
 
+
 <h3>Chat</h3>
+<button type="button" onclick="setup_chat()">Start Chat</button>
 <div id="chat_div" style="overflow:auto; height:200px">
 
 </div>
@@ -83,7 +86,6 @@
         <input type="button" value="Send">
     </form>
 </div>
-
 
 
 

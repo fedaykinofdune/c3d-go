@@ -51,7 +51,7 @@ type Config struct{
     EthKeyFile string
 }
 
-var templates = template.Must(template.ParseFiles("views/index.html", "views/config.html"))
+var templates = template.Must(template.ParseFiles("views/index.html", "views/config.html", "views/chat.html"))
 
 func renderTemplate(w http.ResponseWriter, tmpl string, p interface{}){
     //we already parsed the html templates
@@ -106,25 +106,12 @@ func loadSession(peth *ethpub.PEthereum, ethereum *eth.Ethereum) *Session {
     return session
 }
 
-func (s *Session) handleTransact2(w http.ResponseWriter, r *http.Request){
-        to := r.FormValue("recipient")
-        val := r.FormValue("amount")
-        g := r.FormValue("gas")
-        gp := r.FormValue("gasprice")
-        from := r.FormValue("from_addr")
-        acc_num := (*s).AccountMap[from]
-        priv := (*s).Accounts[acc_num].Priv
-        log.Println(to, val, g, gp, from, acc_num)
-        p, err := (*s).peth.Transact(ethutil.Hex(priv), to, val, g, gp, "")
-        if err != nil{
-            log.Println(err)
-        }
-        log.Println(p)
-       // renderTemplate(w, "index", s)
-}
-
 func updateConfig(c *Config){
     //TODO
+}
+
+func (s *Session) handleChat(w http.ResponseWriter, r *http.Request){
+        renderTemplate(w, "chat", s)
 }
 
 func (c *Config) handleConfig(w http.ResponseWriter, r *http.Request){
@@ -161,12 +148,18 @@ func (s *Session) chatSocketHandler(ws *websocket.Conn){
     if s.chatWebSocket == nil{
         s.chatWebSocket = ws
         s.Chat.ws = ws
+    } else {
+        s.chatWebSocket.Close()
+        s.chatWebSocket = ws
+        s.Chat.ws = ws
     }
     for{
         var f interface{}
         err := websocket.Message.Receive(ws, &in)
         if err != nil{
-            log.Println(err)
+            log.Println("error:", err)
+            ws.Close()
+            break
         }
         err = json.Unmarshal(in, &f)
         m := f.(map[string]interface{})
@@ -180,8 +173,6 @@ func (s *Session) chatSocketHandler(ws *websocket.Conn){
             to := data["to"].(string)
             msg := data["msg"].(string)
             s.Chat.WritePeer(to, msg)
-
-
         } 
     }
 }
@@ -190,12 +181,17 @@ func (s *Session) ethereumSocketHandler(ws *websocket.Conn){
     var in []byte
     if s.ethWebSocket == nil{
         s.ethWebSocket = ws
+    } else{
+        s.ethWebSocket.Close()
+        s.ethWebSocket = ws
     }
     for{
             var f interface{} // for marshaling bytes from socket through json
             err := websocket.Message.Receive(ws, &in)
             if err != nil{
-                log.Println(err)
+                log.Println("error", err)
+                ws.Close()
+                break
             }
             err = json.Unmarshal(in, &f)
             m := f.(map[string]interface{})
@@ -318,7 +314,8 @@ func StartServer(peth *ethpub.PEthereum, ethereum *eth.Ethereum){
     http.HandleFunc("/", sesh.handleIndex)
     //http.HandleFunc("/transact", sesh.handleTransact)
     http.HandleFunc("/config", conf.handleConfig)
-    http.Handle("/chat", websocket.Handler(sesh.chatSocketHandler))
+    //http.HandleFunc("/chat", sesh.handleChat)
+    http.Handle("/chat_sock", websocket.Handler(sesh.chatSocketHandler))
     http.Handle("/ethereum", websocket.Handler(sesh.ethereumSocketHandler))
     http.ListenAndServe(":9099", nil)
 }

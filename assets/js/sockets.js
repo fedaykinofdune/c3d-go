@@ -1,36 +1,9 @@
 //websockets
-
-function setup_chat(){
-    console.log("wtf");
-    window.chat_socket = new WebSocket('ws://localhost:9099/chat');
-    console.log(chat_socket);
-
-    chat_socket.onopen = function(event) {
-        console.log("opened chat socket");
-        chat_socket.send(JSON.stringify({"method":"start_chat"}));
-    }
-
-    chat_socket.onerror = function(error) {
-        console.log("websocket error " + error);
-    }
-
-    chat_socket.onmessage = function(msg){
-       // msg = JSON.parse(msg.data);
-       // data = msg["Data"];
-        console.log(msg.data);
-        elem = document.getElementById("chat_div")
-        elem.innerHTML += "<p>"+msg.data 
-        elem.scrollTop = elem.scrollHeight;
-    }
-}
-    
-
 window.onload = function(){
-    setup_chat();
-    console.log("setup chat");
     window.state = {} // {"addr":"value"}
 
     window.eth_socket = new WebSocket('ws://localhost:9099/ethereum');
+    console.log("got eth socket")
 
     eth_socket.onopen = function(event) {
         var wsock = document.getElementById("websock") 
@@ -117,6 +90,7 @@ function respond_subscribe_storage(data){
 
 }
 
+// roll a form into {method, args{}} and send on socket
 function make_request(form_name){
     var a = document.forms[form_name].getElementsByTagName('input');
     var j = {};
@@ -124,6 +98,7 @@ function make_request(form_name){
         j["method"] = "get_storage";
     else
         j["method"] = "transact";
+
     j["args"] = {};
     for (i=0;i<a.length;i++){
         j["args"][a[i].name] = a[i].value;
@@ -135,24 +110,6 @@ function make_request(form_name){
     return false;
 }
 
-function send_chat_msg(){
-    var t = document.getElementById("chat_send_txt");
-    var txt = t.value;
-    t.value = ""
-    j = {
-        "method": "send_msg",
-        "data":{
-            "to":"",
-            "msg":txt
-        }
-    }
-    chat_socket.send(JSON.stringify(j));
-
-    elem = document.getElementById("chat_div")
-    elem.innerHTML += "<p>"+"me: "+txt 
-    elem.scrollTop = elem.scrollHeight;
-    return false;
-}
 
 //socket.close();
 
