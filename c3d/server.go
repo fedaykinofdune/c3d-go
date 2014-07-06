@@ -61,6 +61,22 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p interface{}){
     }
 }
 
+// subscribe to all accounts, issue response-GetAccounts whenever there are changes
+func (s *Session) accountsReactor(){
+    ch := make(chan ethutil.React)
+    reactor := s.ethereum.Reactor()
+    for _, a := range s.Accounts{
+        reactor.Subscribe("object:"+string(ethutil.FromHex(a.Addr)), ch)
+    }
+    go func(){
+        for {
+            _ = <- ch
+            updateSession(s)
+            s.handleGetAccounts(s.ethWebSocket)
+        }
+    }()
+}
+
 func updateSession(s *Session){
     for i:=0; i<len(s.Accounts);i++{
         addr := (*s).Accounts[i].Addr
@@ -110,6 +126,8 @@ func updateConfig(c *Config){
     //TODO
 }
 
+
+// render html loads
 func (s *Session) handleChat(w http.ResponseWriter, r *http.Request){
         renderTemplate(w, "chat", s)
 }
@@ -127,14 +145,18 @@ func (s *Session) handleIndex(w http.ResponseWriter, r *http.Request){
         renderTemplate(w, "index", s)
 }
 
+// serve static files
 func (s *Session) serveFile(w http.ResponseWriter, r *http.Request){
     if !strings.Contains(r.URL.Path, "."){
         s.handleIndex(w, r)
     }else{
-        //path := fmt.Sprintf("../", r.URL.Path[1:])
         http.ServeFile(w, r, r.URL.Path[1:])
     }
 }
+
+
+// WebSocket connections: chatSocketHandler, ethereumSocketHandler
+// Each has a little json api
 
 /*
     Chat API spec:
@@ -177,6 +199,26 @@ func (s *Session) chatSocketHandler(ws *websocket.Conn){
     }
 }
 
+
+/*
+    ethereum-socket API spec:
+        - Client Request : {"method" : ... , "args" : {   }}
+            - Methods
+                - transact : {"to", "value", "from", "gas", "gas_price"} 
+                - get_accounts : {}
+                - get_storage : {"addr", "storage"}
+                - subscribe_accounts {[ac1, ac2, ...]}
+                - subscribe_stores : {[{"addr", "storage"}, {"addr", "storage"}, ...] }
+        - Server Response : {"response" : ... , "data" : {   }}
+            - Responses
+                - transact : {"success", "txid", "contract", "addr"}
+                - get_accounts : {"addr":"value", "addr":"value", ... ]}
+                - get_storage : {"value"}
+            - Notifies
+                - subscribe_accounts {}
+                - subscribe stores {}
+*/
+
 func (s *Session) ethereumSocketHandler(ws *websocket.Conn){
     var in []byte
     if s.ethWebSocket == nil{
@@ -186,7 +228,7 @@ func (s *Session) ethereumSocketHandler(ws *websocket.Conn){
         s.ethWebSocket = ws
     }
     for{
-            var f interface{} // for marshaling bytes from socket through json
+            var f interface{} // for marshaling bytes from socket through json (they may have different types)
             err := websocket.Message.Receive(ws, &in)
             if err != nil{
                 log.Println("error", err)
@@ -207,48 +249,13 @@ func (s *Session) ethereumSocketHandler(ws *websocket.Conn){
     }
 }
 
-/*
-    web-socket API spec:
-        - Client Request : {"method" : ... , "args" : {   }}
-            - Methods
-                - transact : {"to", "value", "from", "gas", "gas_price"} 
-                - get_accounts : {}
-                - get_storage : {"addr", "storage"}
-                - subscribe_accounts {[ac1, ac2, ...]}
-                - subscribe_stores : {[{"addr", "storage"}, {"addr", "storage"}, ...] }
-        - Server Response : {"response" : ... , "data" : {   }}
-            - Responses
-                - transact : {"success", "txid", "contract", "addr"}
-                - get_accounts : {"addr":"value", "addr":"value", ... ]}
-                - get_storage : {"value"}
-            - Notifies
-                - subscribe_accounts {}
-                - subscribe stores {}
-*/
-
 type Response struct{
     Response string
     Data map[string]string
 }
 
-func (s *Session) accountsReactor(){
-    ch := make(chan ethutil.React)
-    reactor := s.ethereum.Reactor()
-    for _, a := range s.Accounts{
-        reactor.Subscribe("object:"+string(ethutil.FromHex(a.Addr)), ch)
-    }
-    go func(){
-        for {
-            _ = <- ch
-            updateSession(s)
-            s.handleGetAccounts(s.ethWebSocket)
-        }
-    }()
-}
-
-
 func (s *Session) handleGetAccounts(ws *websocket.Conn){
-    acc := Response{Response:"get_accounts", Data:make(map[string]string)} //make(map[string]interface{}) //addr:value
+    acc := Response{Response:"get_accounts", Data:make(map[string]string)} 
     for _, a := range s.Accounts{
         acc.Data[a.Addr] = a.Value
     }
