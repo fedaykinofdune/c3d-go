@@ -1,10 +1,10 @@
 package main
 
 import (
-    "github.com/ethereum/eth-go"
-    "github.com/ethereum/eth-go/ethutil"
-    "github.com/ethereum/eth-go/ethpub"
-    "github.com/ethereum/go-ethereum/utils"
+    "github.com/project-douglas/eth-go"
+    "github.com/project-douglas/eth-go/ethutil"
+    "github.com/project-douglas/eth-go/ethpub"
+    "github.com/project-douglas/go-ethereum/utils"
     "github.com/project-douglas/c3d-go/c3d"
     "os"
     "log"

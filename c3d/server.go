@@ -1,9 +1,9 @@
 package c3d
 
 import (
-    "github.com/ethereum/eth-go"
-    "github.com/ethereum/eth-go/ethpub"
-    "github.com/ethereum/eth-go/ethutil"
+    "github.com/project-douglas/eth-go"
+    "github.com/project-douglas/eth-go/ethpub"
+    "github.com/project-douglas/eth-go/ethutil"
     "code.google.com/p/go.net/websocket"    
     "net/http"
     "html/template"

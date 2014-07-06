@@ -1,7 +1,7 @@
 package c3d
 
 import (
-    "github.com/ethereum/eth-go/ethutil"
+    "github.com/project-douglas/eth-go/ethutil"
     "os/exec"
 )
 

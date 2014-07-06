@@ -1,8 +1,8 @@
 package c3d
 
 import (
-    "github.com/ethereum/eth-go/ethutil"
-    "github.com/ethereum/eth-go/ethpub"
+    "github.com/project-douglas/eth-go/ethutil"
+    "github.com/project-douglas/eth-go/ethpub"
     "io/ioutil"
     "strings"
     "log"
