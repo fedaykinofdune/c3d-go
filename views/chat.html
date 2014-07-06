@@ -1,0 +1,46 @@
+
+<head>
+<link type="text/css" rel="stylesheet" href="assets/css/style.css">
+<script type="text/javascript" src="assets/js/sockets.js?version=271"></script>
+<script type="text/javascript" src="assets/js/chat.js?version=271"></script>
+<script>
+    var acc = {{(index .Accounts 0).Addr}};
+    function changeAcc(addr, value){
+        acc = addr;
+        document.getElementById("addr").innerHTML = "Current Address: "+ addr;
+        document.getElementById("value").innerHTML = "Value: "+ value;
+        document.getElementById("from_addr").value = addr;
+    }
+</script>
+</head>
+<h1>c3d Chat</h1>
+
+
+<div id="accounts_div">
+    <h3>Accounts:</h3>
+    <select id="accounts_dropdown">
+    {{ range $acc := .Accounts }}
+        <!--option value="{{$acc.Addr}}" onselect="document.getElementById('value').innerHTML='$acc.Value';">{{$acc.Addr}}</option-->
+        <option value="{{$acc.Value}}" onclick="change_account();">{{$acc.Addr}}</option>
+    {{ end }}
+    </select>
+    <p id="addr">Current Address: {{(index .Accounts 0).Addr}}
+    <p id="value">Value:{{(index .Accounts 0).Value}}</p>
+    <input id="from_addr" name="from_addr" type="hidden" value="{{(index .Accounts 0).Addr}}"></input>
+</div>
+
+<h3>Chat</h3>
+<button type="button" onclick="setup_chat()">Start Chat</button>
+<div id="chat_div" style="overflow:auto; height:200px">
+
+</div>
+<div id="chat_send" style="overflow:auto">
+    <form action="javascript:void(0);"  onsubmit="send_chat_msg();">
+        <input type="textbox" id="chat_send_txt">
+        <input type="button" value="Send">
+    </form>
+</div>
+
+
+
+

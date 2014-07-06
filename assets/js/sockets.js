@@ -1,14 +1,25 @@
 //websockets
+
+function rando(){
+    var r = Math.random();
+    var c =  r.toString();
+    var d = c;
+    console.log(c);
+        return c;
+       
+}
+
 window.onload = function(){
     window.state = {} // {"addr":"value"}
 
     window.eth_socket = new WebSocket('ws://localhost:9099/ethereum');
-    console.log("got eth socket")
+    console.log("got eth socket");
+    console.log(eth_socket)
+
 
     eth_socket.onopen = function(event) {
-        var wsock = document.getElementById("websock") 
-        wsock.innerHTML = "connected to "+event.currentTarget.URL;
-        eth_socket.send(JSON.stringify({"method":"get_accounts"}));
+        state["uiID"] = rando();
+        eth_socket.send(JSON.stringify({"method":"hello", "uiID":state["uiID"], "type":"eth"}))
     }
 
     eth_socket.onerror = function(error) {
@@ -18,9 +29,10 @@ window.onload = function(){
     eth_socket.onmessage = function(msg){
         msg = JSON.parse(msg.data);
         data = msg["Data"]
-            
         var response = msg["Response"];
-        if (response == "transact")
+        if (response == "hello")
+            respond_eth_hello()
+        else if (response == "transact")
             respond_transact(data);
         else if (response == "get_accounts")
             respond_get_accounts(data);
@@ -31,6 +43,10 @@ window.onload = function(){
         else if (response == "subscribe_storage")
             respond_subscribe_storage(data);
     }
+}
+
+function respond_eth_hello(){
+    eth_socket.send(JSON.stringify({"method":"get_accounts", "uiID":state["uiID"]}));
 }
 
 // make this more informative...
@@ -93,7 +109,7 @@ function respond_subscribe_storage(data){
 // roll a form into {method, args{}} and send on socket
 function make_request(form_name){
     var a = document.forms[form_name].getElementsByTagName('input');
-    var j = {};
+    var j = {"uiID":state["uiID"]};
     if (form_name == "storage_lookup")
         j["method"] = "get_storage";
     else

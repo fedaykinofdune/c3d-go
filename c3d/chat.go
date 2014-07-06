@@ -5,12 +5,14 @@ import (
     "net"
     "fmt"
     "code.google.com/p/go.net/websocket"    
+    "encoding/json"
 )
 
 /*
 P2P Chat with blockchain based authentication
-- how do Alice and Bob exchange ip:ports to establish a chat session? Alice encrypts her ip:port with bobs public key, sends to bobs addr in tx. Bob decrypts, contacts alice
-- this allows us to establish connections to online friends, but basically you have to ping all your friends like this every time you come online to see who else is online (though we can cache addresses and automatically try them at startup)
+- how do Alice and Bob exchange ip:ports to establish a chat session? 
+- Whenever Alice adds a new friend, she sends her "friend-key".  When Alice comes online, she encrypts her "ip:port" with the friend-key and sends in a tx to her "percy-proxy".  Users subscribe to all their friends "percy-proxies"
+- Bob will see Alice sent a tx to her percy-proxy, and will decrypt the msg with Alice's friend key, then try to connect to her
 
 - once we have peer connections, we can build conversations.
 - communication with byte streams: "method" (1 byte), "convo_id" (31 bytes), "data" (arbitrary) 
@@ -27,6 +29,9 @@ P2P Chat with blockchain based authentication
 - "method" and "convo_id" are encrypted (together) with the symmetric key for the peer
 - for "invite", the entire thing is encrypted with the symmetric key for the peer
 - messages are encrypted with the symmetric key for the convo
+
+much to be implemented....
+
 */
 
 
@@ -90,7 +95,12 @@ func (c *Chat) readPeer(me *Peer){
             break
         }
         fmt.Println(con.RemoteAddr().String() + ": " + string(buf[:n]))
-        c.read_ch <- con.RemoteAddr().String() + ": " + string(buf[:n])
+        r := Response{Response:"msg", Data:make(map[string]string)}
+        r.Data["from"] = con.RemoteAddr().String() 
+        r.Data["msg"] = string(buf[:n])
+        by , _ := json.Marshal(r)
+        log.Println(string(by))
+        c.read_ch <- string(by)
     }
 }
 
@@ -193,6 +203,8 @@ func (c *Chat) peerManager(){
     }
 }
 
+// for now, we can only start one chat (ie can't have multiple browser windows trying to start chat
+// should be ok, and can make multiple conversations
 func (c *Chat) StartChat(){
     if !c.started{
         c.started = true

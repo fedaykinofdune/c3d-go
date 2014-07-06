@@ -13,6 +13,11 @@ import (
     "strconv"
 )
 
+/* 
+   Every connection to this server spawns a Session. Session's can be linked to particualr UIs with uiID (browser page)
+   The uiID is used to determine the origin of a websocket msg, to send it to the right session
+*/
+
 type account struct{
     Addr string
     Priv []byte
@@ -41,6 +46,8 @@ type Session struct{
 
     ethWebSocket *websocket.Conn 
     chatWebSocket *websocket.Conn
+
+    uiID string // link to page in browser
 }
 
 type Config struct{
@@ -66,7 +73,8 @@ func (s *Session) accountsReactor(){
     ch := make(chan ethutil.React)
     reactor := s.ethereum.Reactor()
     for _, a := range s.Accounts{
-        reactor.Subscribe("object:"+string(ethutil.FromHex(a.Addr)), ch)
+        event := "object:"+string(ethutil.FromHex(a.Addr))
+        reactor.Subscribe(event, ch) // subscribe channel to all accounts
     }
     go func(){
         for {
@@ -99,9 +107,12 @@ func loadConfig(peth *ethpub.PEthereum) *Config{
     return conf
 }
 
-func loadSession(peth *ethpub.PEthereum, ethereum *eth.Ethereum) *Session {
+func (g *Globals) loadSession(peth *ethpub.PEthereum, ethereum *eth.Ethereum) *Session {
      keyRing := ethutil.GetKeyRing()
      session := &Session{}
+     g.n_sessions += 1
+     g.sessions = append(g.sessions, session)
+     g.sessionMap = make(map[string]*Session)
      session.peth = peth
      (*session).AccountMap = make(map[string]int)
      for i:=0;i<keyRing.Len();i++{
@@ -119,6 +130,7 @@ func loadSession(peth *ethpub.PEthereum, ethereum *eth.Ethereum) *Session {
      session.chatWebSocket = nil
      session.ethereum = ethereum
      session.Chat = &Chat{}
+     session.uiID = ""
     return session
 }
 
@@ -128,8 +140,11 @@ func updateConfig(c *Config){
 
 
 // render html loads
-func (s *Session) handleChat(w http.ResponseWriter, r *http.Request){
-        renderTemplate(w, "chat", s)
+func (g *Globals) handleChat(w http.ResponseWriter, r *http.Request){
+        sesh := g.loadSession(g.peth, g.eth)
+        updateSession(sesh)
+        sesh.accountsReactor()
+        renderTemplate(w, "chat", sesh)
 }
 
 func (c *Config) handleConfig(w http.ResponseWriter, r *http.Request){
@@ -137,18 +152,20 @@ func (c *Config) handleConfig(w http.ResponseWriter, r *http.Request){
         renderTemplate(w, "config", c)
 }
 
-func (s *Session) handleIndex(w http.ResponseWriter, r *http.Request){
+func (g *Globals) handleIndex(w http.ResponseWriter, r *http.Request){
         if r.FormValue("reset_config") == "1"{
             // reset everything with new config :)
         }
-        updateSession(s)
-        renderTemplate(w, "index", s)
+        sesh := g.loadSession(g.peth, g.eth)
+        updateSession(sesh)
+        sesh.accountsReactor()
+        renderTemplate(w, "index", sesh)
 }
 
 // serve static files
-func (s *Session) serveFile(w http.ResponseWriter, r *http.Request){
+func serveFile(w http.ResponseWriter, r *http.Request){
     if !strings.Contains(r.URL.Path, "."){
-        s.handleIndex(w, r)
+        //s.handleIndex(w, r)
     }else{
         http.ServeFile(w, r, r.URL.Path[1:])
     }
@@ -159,14 +176,33 @@ func (s *Session) serveFile(w http.ResponseWriter, r *http.Request){
 // Each has a little json api
 
 /*
-    Chat API spec:
+    Chat API spec: {"method", "uiID", "data"}
         - "start_chat" : no params
         - "connect_peers" : ["addr", "addr", ...]
         - "send_msg" : {"to", "msg"}
 */
 
-func (s *Session) chatSocketHandler(ws *websocket.Conn){
+func (g *Globals) newHello(m map[string]interface{}, ws *websocket.Conn) bool{
+    uiid := m["uiID"].(string)
+    typ := m["type"].(string)
+    sesh := g.sessions[g.n_sessions-1]
+    sesh.uiID = uiid
+    g.sessionMap[uiid] = sesh
+    if typ == "chat"{
+        sesh.chatWebSocket = ws
+        sesh.Chat.ws = ws
+    } else{
+        sesh.ethWebSocket = ws
+    }
+    r := Response{Response:"hello"}
+    by, _ := json.Marshal(r)
+    websocket.Message.Send(ws, string(by))
+    return true
+}
+
+func (g *Globals) chatSocketHandler(ws *websocket.Conn){
     var in []byte
+    /*
     if s.chatWebSocket == nil{
         s.chatWebSocket = ws
         s.Chat.ws = ws
@@ -174,7 +210,8 @@ func (s *Session) chatSocketHandler(ws *websocket.Conn){
         s.chatWebSocket.Close()
         s.chatWebSocket = ws
         s.Chat.ws = ws
-    }
+    }*/
+    hello := false
     for{
         var f interface{}
         err := websocket.Message.Receive(ws, &in)
@@ -185,17 +222,27 @@ func (s *Session) chatSocketHandler(ws *websocket.Conn){
         }
         err = json.Unmarshal(in, &f)
         m := f.(map[string]interface{})
-        if m["method"] == "start_chat"{
-            go s.Chat.StartChat()
-        } else if m["method"] == "connect_new_peer"{
-           peer := m["data"].(string)
-           s.Chat.ConnectPeers([]string{peer}) 
-        } else if m["method"] == "send_msg"{
-            data := m["data"].(map[string]interface{})
-            to := data["to"].(string)
-            msg := data["msg"].(string)
-            s.Chat.WritePeer(to, msg)
-        } 
+
+        if !hello &&  m["method"] != "hello"{
+            break
+        } else if !hello && m["method"] == "hello"{
+            hello = g.newHello(m, ws)
+        } else{
+            log.Println(g.sessionMap)
+            log.Println(m)
+            s := g.sessionMap[m["uiID"].(string)]
+            if m["method"] == "start_chat"{
+                go s.Chat.StartChat()
+            } else if m["method"] == "connect_new_peer"{
+               peer := m["data"].(string)
+               s.Chat.ConnectPeers([]string{peer}) 
+            } else if m["method"] == "send_msg"{
+                data := m["data"].(map[string]interface{})
+                to := data["to"].(string)
+                msg := data["msg"].(string)
+                s.Chat.WritePeer(to, msg)
+            } 
+        }
     }
 }
 
@@ -219,14 +266,16 @@ func (s *Session) chatSocketHandler(ws *websocket.Conn){
                 - subscribe stores {}
 */
 
-func (s *Session) ethereumSocketHandler(ws *websocket.Conn){
+func (g *Globals) ethereumSocketHandler(ws *websocket.Conn){
     var in []byte
+    /*
     if s.ethWebSocket == nil{
         s.ethWebSocket = ws
     } else{
         s.ethWebSocket.Close()
         s.ethWebSocket = ws
-    }
+    }*/
+    hello := false
     for{
             var f interface{} // for marshaling bytes from socket through json (they may have different types)
             err := websocket.Message.Receive(ws, &in)
@@ -237,14 +286,22 @@ func (s *Session) ethereumSocketHandler(ws *websocket.Conn){
             }
             err = json.Unmarshal(in, &f)
             m := f.(map[string]interface{})
-            if m["method"] == "transact"{
-                a := m["args"].(map[string]interface{})
-                s.handleTransact(ws, a)
-            } else if m["method"] == "get_accounts"{
-                s.handleGetAccounts(ws)
-            } else if m["method"] == "get_storage"{
-                a := m["args"].(map[string]interface{})
-                s.handleGetStorage(ws, a)
+            log.Println(m)
+            if !hello && m["method"] != "hello"{
+                break
+            } else if !hello && m["method"] == "hello"{
+                hello = g.newHello(m, ws)
+            } else{
+                s := g.sessionMap[m["uiID"].(string)]
+                if m["method"] == "transact"{
+                    a := m["args"].(map[string]interface{})
+                    s.handleTransact(ws, a)
+                } else if m["method"] == "get_accounts"{
+                    s.handleGetAccounts(ws)
+                } else if m["method"] == "get_storage"{
+                    a := m["args"].(map[string]interface{})
+                    s.handleGetStorage(ws, a)
+                }
             }
     }
 }
@@ -313,16 +370,28 @@ func (s *Session) handleGetStorage(ws *websocket.Conn, args map[string]interface
     websocket.Message.Send(ws, string(by))
 }
 
+type Globals struct {
+    peth *ethpub.PEthereum
+    eth *eth.Ethereum
+
+    sessions []*Session
+    n_sessions int
+    sessionMap map[string]*Session
+}
+
 func StartServer(peth *ethpub.PEthereum, ethereum *eth.Ethereum){
-    sesh := loadSession(peth, ethereum)
     conf := loadConfig(peth)
-    sesh.accountsReactor()
-    http.HandleFunc("/assets/", sesh.serveFile)
-    http.HandleFunc("/", sesh.handleIndex)
-    //http.HandleFunc("/transact", sesh.handleTransact)
-    http.HandleFunc("/config", conf.handleConfig)
-    //http.HandleFunc("/chat", sesh.handleChat)
-    http.Handle("/chat_sock", websocket.Handler(sesh.chatSocketHandler))
-    http.Handle("/ethereum", websocket.Handler(sesh.ethereumSocketHandler))
+    g := Globals{peth:peth, eth:ethereum, n_sessions:0}
+
+    // pages
+    http.HandleFunc("/", g.handleIndex) // main page
+    http.HandleFunc("/chat", g.handleChat) // chat page
+    http.HandleFunc("/config", conf.handleConfig) // config page
+    http.HandleFunc("/assets/", serveFile) // static files
+
+    // sockets
+    http.Handle("/chat_sock", websocket.Handler(g.chatSocketHandler))
+    http.Handle("/ethereum", websocket.Handler(g.ethereumSocketHandler))
+
     http.ListenAndServe(":9099", nil)
 }
