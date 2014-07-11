@@ -107,7 +107,7 @@ function respond_subscribe_storage(data){
 }
 
 function eth_request(method, args) {
-    if( method == "transact" ){ //Transact defaults.
+    if( method == "transact" || method == "create" ){ //Transact defaults.
         args["from_addr"] = args["from_addr"] || "{{(index .Accounts 0).Addr}}";
         args["data"]      = args["data"] || "";
         args["amount"]    = args["amount"] || 0;
@@ -120,7 +120,6 @@ function eth_request(method, args) {
     eth_socket.send(JSON.stringify(dict))
     return false;
 }
-
 // roll a form into {method, args{}} and send on socket
 function make_request(form_name){
     var method = {"storage_lookup"       : "get_storage", 
@@ -135,8 +134,22 @@ function make_request(form_name){
     return eth_request(method, args);
 }
 
+/*
+function eth_transact(from_addr, recipient, data, amount, gas, gasprice) {
+    return eth_request("transact",
+                       {"from_addr":from_addr, "recipient":recipient,
+                        "data":data, "amount":amount, "gas":gas, "gasprice":gasprice})
+}
 
+function eth_storage_at(addr, index) {
+    return eth_request("get_storage", {"contract_addr":addr, "storage_addr":index})
+}
 
+function eth_create(addr, index) {
+    return eth_request("create",
+                       {"from_addr":from_addr, "recipient":recipient,
+                        "data":data, "amount":amount, "gas":gas, "gasprice":gasprice})
+}*/
 
 //socket.close();
 
