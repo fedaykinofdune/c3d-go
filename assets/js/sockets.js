@@ -106,25 +106,44 @@ function respond_subscribe_storage(data){
 
 }
 
+function eth_request(method, args) {
+    var dict = {"uiID":state["uiID"], "method" : method, "args" : args}
+    console.log(dict)
+    console.log(dict["args"])
+    eth_socket.send(JSON.stringify(dict))
+    return false
+}
+
+function eth_get_storage(addr, index) {
+    return eth_request("get_storage", {"contract_addr" : addr, "storage_addr" : index})
+}
+
+function eth_transact(from_addr, recipient, data, amount, gas, gasprice) {
+    from_addr = from_addr || "{{(index .Accounts 0).Addr}}";
+    data = data || "";
+    amount = amount || 0;
+    gas = gas || 500;
+    gasprice = gasprice || 1000
+    return eth_request("transact", {"from_addr" : from_addr, "recipient" : recipient,
+                                    "data" : data,
+                                    "amount" : amount, "gas" : gas, "gasprice" : gasprice})
+}
+
 // roll a form into {method, args{}} and send on socket
 function make_request(form_name){
     var a = document.forms[form_name].getElementsByTagName('input');
-    var j = {"uiID":state["uiID"]};
-    if (form_name == "storage_lookup")
-        j["method"] = "get_storage";
-    else
-        j["method"] = "transact";
+    var method = {"storage_lookup" : "get_storage", 
+                  "transact_form" : "transact",
+                  "create_contract_form", "create"}
 
-    j["args"] = {};
+    var args = {};
     for (i=0;i<a.length;i++){
-        j["args"][a[i].name] = a[i].value;
+        args[a[i].name] = a[i].value;
     }
-    console.log(j);
-    console.log(j["args"]);
-
-    eth_socket.send(JSON.stringify(j));
-    return false;
+    return eth_request(method, args);
 }
+
+
 
 
 //socket.close();
