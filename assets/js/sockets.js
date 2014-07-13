@@ -42,6 +42,8 @@ window.onload = function(){
             respond_subscribe_accounts(data);
         else if (response == "subscribe_storage")
             respond_subscribe_storage(data);
+        else if (response == "get_src")
+            respond_src_file(data);
     }
 }
 
@@ -110,9 +112,9 @@ function eth_request(method, args) {
     if( method == "transact" || method == "create" ){ //Transact defaults.
         args["from_addr"] = args["from_addr"] || "{{(index .Accounts 0).Addr}}";
         args["data"]      = args["data"] || "";
-        args["amount"]    = args["amount"] || 0;
-        args["gas"]       = args["gas"] || 500;
-        args["gasprice"]  = args["gasprice"] || 1000;
+        args["amount"]    = args["amount"] || "0";
+        args["gas"]       = args["gas"] || "500";
+        args["gasprice"]  = args["gasprice"] || "1000";
     }
     var dict = {"uiID" : state["uiID"], "method" : method, "args" : args}
     console.log(dict)
@@ -124,7 +126,7 @@ function eth_request(method, args) {
 function make_request(form_name){
     var method = {"storage_lookup"       : "get_storage", 
                   "transact_form"        : "transact",
-                  "create_contract_form" : "create"}[form_name]
+                  "create_contract_form" : "transact"}[form_name]
 
     var args = {};
     var a = document.forms[form_name].getElementsByTagName('input');
@@ -150,6 +152,36 @@ function eth_create(addr, index) {
                        {"from_addr":from_addr, "recipient":recipient,
                         "data":data, "amount":amount, "gas":gas, "gasprice":gasprice})
 }*/
+
+function load_src_file(){
+    var filename = document.getElementById("src_file").value;
+    var j = {"uiID":state["uiID"]};
+    j["method"] = "get_src"
+    j["args"] = {"filename":filename};
+
+    console.log(j);
+    console.log(j["args"]);
+
+    eth_socket.send(JSON.stringify(j));
+    return false;
+}
+
+function respond_src_file(data){
+    console.log('got source');
+    console.log(data)
+
+    coder = document.getElementById("coder")
+    if (data["error"] == ""){
+        coder.value = data["contents"]
+    }
+    else {
+        coder.value = data["error"]
+    }
+    lang = document.getElementById("script_lang");
+    if (data["filename"].indexOf("lll") > 0)
+        lang.value="lll";
+
+}
 
 //socket.close();
 

@@ -10,6 +10,7 @@ import (
     "log"
     "bytes"
     "fmt"
+    "os/exec"
 )
 
 //Logging
@@ -72,4 +73,24 @@ func CurrentInfo(peth *ethpub.PEthereum){
     //buf.WriteString("Coinbase: \t", coinbase)
     logger.Infoln(buf.String())
 }
+
+
+func compileLLL(lll string) string{
+    cmd := exec.Command("serpent", "compile_lll", lll)
+    var out bytes.Buffer
+    cmd.Stdout = &out
+    err := cmd.Run()
+    if err != nil {
+        logger.Infoln("Couldn't compile!!", err)
+        return ""
+    }
+    //outstr := strings.Split(out.String(), "\n")
+    outstr := out.String()
+    for l:=len(outstr);outstr[l-1] == '\n';l--{
+        outstr = outstr[:l-1]
+    }
+    return "0x"+outstr
+}
+
+
 

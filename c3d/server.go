@@ -11,6 +11,7 @@ import (
     "log"
     "encoding/json"
     "strconv"
+    "io/ioutil"    
 )
 
 /* 
@@ -302,7 +303,12 @@ func (g *Globals) ethereumSocketHandler(ws *websocket.Conn){
                 } else if m["method"] == "get_storage"{
                     a := m["args"].(map[string]interface{})
                     s.handleGetStorage(ws, a)
+                } else if m["method"] == "get_src"{
+                    a := m["args"].(map[string]interface{})
+                    filename := a["filename"].(string)
+                    handleGetSource(ws, filename)
                 }
+
             }
     }
 }
@@ -311,6 +317,22 @@ type Response struct{
     Response string
     Data map[string]string
 }
+
+func handleGetSource(ws *websocket.Conn, filename string){
+    file, err := ioutil.ReadFile(filename)
+    r := Response{Response:"get_src", Data:make(map[string]string)}
+    if err != nil{
+        r.Data["error"] = err.Error()
+    } else{
+        r.Data["error"] = ""
+        r.Data["contents"] = string(file)
+        r.Data["filename"] = filename
+    }
+    by, _ := json.Marshal(r)
+    log.Println("sending get src", string(by))
+    websocket.Message.Send(ws, string(by))
+}
+
 
 func (s *Session) handleGetAccounts(ws *websocket.Conn){
     acc := Response{Response:"get_accounts", Data:make(map[string]string)} 
@@ -324,13 +346,16 @@ func (s *Session) handleGetAccounts(ws *websocket.Conn){
     }
 }
 
+// this needs proper error handling and to be able to send back on the socket the problem
 func (s *Session) handleTransact(ws *websocket.Conn, tx map[string]interface{}){
+        log.Println("handle")
         from := tx["from_addr"].(string)
         recipient := tx["recipient"].(string)
         amount := tx["amount"].(string)
         gas := tx["gas"].(string)
         gasP := tx["gasprice"].(string)
         data := tx["data"].(string)
+        lang := tx["script_lang"].(string)
         acc_num := (*s).AccountMap[from]
         priv := (*s).Accounts[acc_num].Priv
         log.Println(recipient, amount, gas, gasP, from, acc_num)
@@ -338,6 +363,16 @@ func (s *Session) handleTransact(ws *websocket.Conn, tx map[string]interface{}){
         var p *ethpub.PReceipt
         var err error
         if recipient == ""{
+            if lang == "lll"{
+                data = compileLLL(data)
+                if data == ""{
+                    // failed to compile
+                }
+                log.Println("compiled lll")
+                log.Println(data)
+                log.Println(len(data))
+                log.Println([]byte(data))
+            }
             p, err = (*s).peth.Create(ethutil.Hex(priv), amount, gas, gasP, data)
             if err != nil{
                 log.Println(err)

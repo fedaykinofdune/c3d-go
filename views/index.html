@@ -47,11 +47,14 @@
         <p>Amount: <input name="amount"></input>
         <p>Gas: <input name="gas" value="5000"></input>
         <p>GasPrice: <input name="gasprice" value="1000000"></input>
-        <p>Code: <input name="data" value="this.store[0]=0x5" type="textbox"></input>
+        <p>Code: <textarea id="coder" name="data" value="this.store[0]=0x5"></textarea>
         <input id="from_addr" name="from_addr" type="hidden" value="{{(index .Accounts 0).Addr}}"></input>
         <input id="recipient" name="recipient" type="hidden" value=""></input>
+        <input id="script_lang" name="script_lang" type="hidden" value="mutan"></input>
         <p><button type="button" onclick="make_request('create_contract_form')">Transact</button>
     </form>
+    <p>Load from source <input id="src_file" name="src_file", value="contracts/hello.lll"></input>
+    <button type="button" onclick="load_src_file()">Load</button>
 </div>
 
 <div id="downloads_div">
