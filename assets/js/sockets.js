@@ -106,26 +106,50 @@ function respond_subscribe_storage(data){
 
 }
 
-// roll a form into {method, args{}} and send on socket
-function make_request(form_name){
-    var a = document.forms[form_name].getElementsByTagName('input');
-    var j = {"uiID":state["uiID"]};
-    if (form_name == "storage_lookup")
-        j["method"] = "get_storage";
-    else
-        j["method"] = "transact";
-
-    j["args"] = {};
-    for (i=0;i<a.length;i++){
-        j["args"][a[i].name] = a[i].value;
+function eth_request(method, args) {
+    if( method == "transact" || method == "create" ){ //Transact defaults.
+        args["from_addr"] = args["from_addr"] || "{{(index .Accounts 0).Addr}}";
+        args["data"]      = args["data"] || "";
+        args["amount"]    = args["amount"] || 0;
+        args["gas"]       = args["gas"] || 500;
+        args["gasprice"]  = args["gasprice"] || 1000;
     }
-    console.log(j);
-    console.log(j["args"]);
-
-    eth_socket.send(JSON.stringify(j));
+    var dict = {"uiID" : state["uiID"], "method" : method, "args" : args}
+    console.log(dict)
+    console.log(dict["args"])
+    eth_socket.send(JSON.stringify(dict))
     return false;
 }
+// roll a form into {method, args{}} and send on socket
+function make_request(form_name){
+    var method = {"storage_lookup"       : "get_storage", 
+                  "transact_form"        : "transact",
+                  "create_contract_form" : "create"}[form_name]
 
+    var args = {};
+    var a = document.forms[form_name].getElementsByTagName('input');
+    for (i=0;i<a.length;i++){
+        args[a[i].name] = a[i].value;
+    }
+    return eth_request(method, args);
+}
+
+/*
+function eth_transact(from_addr, recipient, data, amount, gas, gasprice) {
+    return eth_request("transact",
+                       {"from_addr":from_addr, "recipient":recipient,
+                        "data":data, "amount":amount, "gas":gas, "gasprice":gasprice})
+}
+
+function eth_storage_at(addr, index) {
+    return eth_request("get_storage", {"contract_addr":addr, "storage_addr":index})
+}
+
+function eth_create(addr, index) {
+    return eth_request("create",
+                       {"from_addr":from_addr, "recipient":recipient,
+                        "data":data, "amount":amount, "gas":gas, "gasprice":gasprice})
+}*/
 
 //socket.close();
 
