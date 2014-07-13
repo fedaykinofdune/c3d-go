@@ -33,6 +33,7 @@ var (
     TransmissionPort = flag.String("transmissionPort", "9091", "transmission rpc port")
     ChatPort = flag.String("chatPort", "9100", "p2p websocket chat port")
     Mine = flag.Bool("mine", false, "start mining ethereum blocks")
+    Home = os.Getenv("GOPATH") + "/src/github.com/project-douglas/c3d-go/"
 )
 
 func Init(){
@@ -84,5 +85,7 @@ func Init(){
         log.Println("New key generated and added to ", filename, ". Funds will be deposited on next start up")
         os.Exit(0)
     }
+
+    *KeyFile = Home + *KeyFile
 
 }

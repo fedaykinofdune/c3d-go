@@ -58,7 +58,8 @@ type Config struct{
     EthKeyFile string
 }
 
-var templates = template.Must(template.ParseFiles("views/index.html", "views/config.html", "views/chat.html"))
+//paths
+var templates = template.Must(template.ParseFiles(Home+"views/index.html", Home+"views/config.html", Home+"views/chat.html"))
 
 func renderTemplate(w http.ResponseWriter, tmpl string, p interface{}){
     //we already parsed the html templates
