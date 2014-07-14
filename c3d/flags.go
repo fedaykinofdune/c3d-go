@@ -3,13 +3,14 @@ package c3d
 import (
     "github.com/project-douglas/eth-go/ethutil"
     "os"
-        "os/user"
+    "os/user"
     "path"
     "flag"
     "bytes"
     "io/ioutil"
     "log"
     "fmt"
+    "github.com/rakyll/globalconf"
 )
 
 func homeDir() string{
@@ -17,7 +18,26 @@ func homeDir() string{
     return usr.HomeDir
 }
 
-// Flags
+// Flags and Config
+// Both can be specified at command line, but config can be read from $C3DDir/c3d-go.config
+// cli > config-file > defaults
+
+var GlobalConfig = make(map[string]string)
+var ConfigOptions = []string{"key_file", "eth_data_dir", "eth_config_file", "eth_log_file", "eth_port", "transmission_port", 
+    "c3d_dir", "c3d_config", "chat_port"}
+
+func populateConfig(){
+    GlobalConfig["key_file"] = *KeyFile
+    GlobalConfig["eth_data_dir"] = *EthDataDir
+    GlobalConfig["eth_config_file"] = *EthConfigFile
+    GlobalConfig["eth_log_file"] = *EthLogFile
+    GlobalConfig["eth_port"] = *EthPort
+    GlobalConfig["transmission_port"] = *TransmissionPort
+    GlobalConfig["c3d_dir"] = *C3DDir
+    GlobalConfig["c3d_config"] = *C3DConfig
+    GlobalConfig["chat_port"] = *ChatPort
+}
+
 var (
     kill = flag.String("kill", "", "kill a process and die")
     downloadTorrent = flag.String("downloadTorrent", "", "download torrent from infohash and die")
@@ -25,19 +45,50 @@ var (
     lookupDownloadTorrent = flag.String("lookupDownloadTorrent", "", "lookup this contract address for an infohash, using storageAt flag for sotrage address")
     storageAt = flag.String("storageAt", "", "storage address in contract")
     newKey = flag.Bool("newKey", false, "create a new key and send it funds from a genesis addr")
-    KeyFile = flag.String("keyFile", "keys.txt", "file in which private keys are stored")
-    EthDataDir = flag.String("ethDataDir", path.Join(homeDir(), ".pd-eth"), "directory for ethereum data")
-    EthConfigFile = flag.String("ethConfigFile", path.Join(homeDir(), ".pd-eth/config"), "ethereum configuration file")
-    EthLogFile = flag.String("ethLogFile", "", "ethereum logging file. Defaults to stdout")
-    EthPort = flag.String("ethPort", "30303", "ethereum listen port")
-    TransmissionPort = flag.String("transmissionPort", "9091", "transmission rpc port")
-    ChatPort = flag.String("chatPort", "9100", "p2p websocket chat port")
+    KeyFile = flag.String("key_file", "keys.txt", "file in which private keys are stored")
+    EthDataDir = flag.String("eth_data_dir", path.Join(homeDir(), ".pd-eth"), "directory for ethereum data")
+    EthConfigFile = flag.String("eth_config_file", path.Join(homeDir(), ".pd-eth/config"), "ethereum configuration file")
+    EthLogFile = flag.String("eth_log_file", "", "ethereum logging file. Defaults to stdout")
+    EthPort = flag.String("eth_port", "30303", "ethereum listen port")
+    TransmissionPort = flag.String("transmission_port", "9091", "transmission rpc port")
+    C3DDir = flag.String("c3d_dir", path.Join(homeDir(), ".c3d-go"), "directory for c3d data")
+    C3DConfig = flag.String("c3d_config", path.Join(*C3DDir, "c3d-go.config"), "directory for c3d data")
+    ChatPort = flag.String("chat_port", "9100", "p2p websocket chat port")
     Mine = flag.Bool("mine", false, "start mining ethereum blocks")
     Home = os.Getenv("GOPATH") + "/src/github.com/project-douglas/c3d-go/"
 )
 
+func readConfigFile(){
+    _, err := os.Stat(*C3DConfig)
+    if err != nil && os.IsNotExist(err){
+        log.Println("No config file. Creating now")
+        os.MkdirAll(*C3DDir, 0777)
+        f, err := os.Create(*C3DConfig)
+        if err != nil{
+            log.Println("Could not create config file:", err)
+        }else{
+            populateConfig()
+            for _, k := range ConfigOptions{
+                f.WriteString(k+" = "+GlobalConfig[k]+"\n")
+            }
+        }
+    } else{
+        conf, err := globalconf.NewWithOptions(&globalconf.Options{
+            Filename: *C3DConfig,
+        })
+        if err != nil{
+            log.Println("Could not read from config file", err)
+        } else{
+            conf.ParseAll()
+            populateConfig()
+        }
+    }
+}
+
+
 func Init(){
-    flag.Parse()
+    readConfigFile()
+
     if *kill != ""{
         KillPidByName(*kill)
         os.Exit(0)
@@ -87,5 +138,5 @@ func Init(){
     }
 
     *KeyFile = Home + *KeyFile
-
+    
 }
