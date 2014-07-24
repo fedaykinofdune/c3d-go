@@ -8,6 +8,7 @@ import (
     "flag"
     "bytes"
     "io/ioutil"
+    "bufio"
     "log"
     "fmt"
     "github.com/rakyll/globalconf"
@@ -24,7 +25,7 @@ func homeDir() string{
 
 var GlobalConfig = make(map[string]string)
 var ConfigOptions = []string{"key_file", "eth_data_dir", "eth_config_file", "eth_log_file", "eth_port", "transmission_port", 
-    "c3d_dir", "c3d_config", "chat_port"}
+    "c3d_dir", "c3d_config", "chat_port", "path_to_lll"}
 
 func populateConfig(){
     GlobalConfig["key_file"] = *KeyFile
@@ -36,6 +37,7 @@ func populateConfig(){
     GlobalConfig["c3d_dir"] = *C3DDir
     GlobalConfig["c3d_config"] = *C3DConfig
     GlobalConfig["chat_port"] = *ChatPort
+    GlobalConfig["path_to_lll"] = *PathToLLL
 }
 
 var (
@@ -54,12 +56,36 @@ var (
     C3DDir = flag.String("c3d_dir", path.Join(homeDir(), ".c3d-go"), "directory for c3d data")
     C3DConfig = flag.String("c3d_config", path.Join(*C3DDir, "c3d-go.config"), "directory for c3d data")
     ChatPort = flag.String("chat_port", "9100", "p2p websocket chat port")
+    PathToLLL = flag.String("path_to_lll", "", "absolute path to LLL compiler")
     Mine = flag.Bool("mine", false, "start mining ethereum blocks")
     Home = os.Getenv("GOPATH") + "/src/github.com/project-douglas/c3d-go/"
 )
 
+func finalizeConfig(){
+    log.Println(*PathToLLL)
+    if *PathToLLL == ""{
+        bio := bufio.NewReader(os.Stdin)
+        fmt.Print("Enter the absolute path to LLL compiler: ")
+        line, _, err := bio.ReadLine() // line, whats left, err
+        if err != nil{
+            log.Fatal(err)
+        }
+        *PathToLLL = string(line)
+        populateConfig()
+        
+        f, err := os.Create(*C3DConfig)
+        if err != nil{
+            log.Fatal("could not open config file,", err)
+        }
+        for _, k := range ConfigOptions{
+            f.WriteString(k+" = "+GlobalConfig[k]+"\n")
+        }
+    }
+}
+
 func readConfigFile(){
     _, err := os.Stat(*C3DConfig)
+    log.Println(*C3DConfig)
     if err != nil && os.IsNotExist(err){
         log.Println("No config file. Creating now")
         os.MkdirAll(*C3DDir, 0777)
@@ -80,9 +106,9 @@ func readConfigFile(){
             log.Println("Could not read from config file", err)
         } else{
             conf.ParseAll()
-            populateConfig()
         }
     }
+    finalizeConfig()
 }
 
 
