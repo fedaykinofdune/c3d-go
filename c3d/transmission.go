@@ -118,7 +118,7 @@ func GetTorrentID(file string) int{
     ts := GetTorrents()
     for _, t := range ts{
         if t["name"] == file{
-            return t["id"]
+            return t["id"].(int)
         }
     }
     return -1

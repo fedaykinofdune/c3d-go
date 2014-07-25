@@ -9,7 +9,7 @@ import (
 func BigNumStrToHex(s string) string{
     bignum := ethutil.Big(s)
     bignum_bytes := ethutil.BigToBytes(bignum, 16)
-    return ethutil.Hex(bignum_bytes)
+    return ethutil.Bytes2Hex(bignum_bytes)
 }
 
 func KillPidByName(name string){

@@ -2,6 +2,7 @@ package c3d
 
 import (
     "github.com/project-douglas/eth-go/ethutil"
+    "github.com/project-douglas/eth-go/ethcrypto"
     "os"
     "os/user"
     "path"
@@ -57,30 +58,32 @@ var (
     C3DConfig = flag.String("c3d_config", path.Join(*C3DDir, "c3d-go.config"), "directory for c3d data")
     BlobDir = flag.String("blob_dir", path.Join(*C3DDir, "blobs"), "directory for c3d blobs")
     ChatPort = flag.String("chat_port", "9100", "p2p websocket chat port")
-    PathToLLL = flag.String("path_to_lll", "", "absolute path to LLL compiler")
+    PathToLLL = flag.String("path_to_lll", "/root/cpp-ethereum/build/lllc/lllc", "absolute path to LLL compiler")
     Mine = flag.Bool("mine", false, "start mining ethereum blocks")
     Home = os.Getenv("GOPATH") + "/src/github.com/project-douglas/c3d-go/"
 )
 
 func finalizeConfig(){
-    log.Println(*PathToLLL)
-    if *PathToLLL == ""{
+    _, err := os.Stat(*PathToLLL)
+    for err != nil{
         bio := bufio.NewReader(os.Stdin)
-        fmt.Print("Enter the absolute path to LLL compiler: ")
+        fmt.Print("Please enter a valid path to LLL compiler: ")
         line, _, err := bio.ReadLine() // line, whats left, err
         if err != nil{
             log.Fatal(err)
         }
         *PathToLLL = string(line)
-        populateConfig()
-        
-        f, err := os.Create(*C3DConfig)
-        if err != nil{
-            log.Fatal("could not open config file,", err)
-        }
-        for _, k := range ConfigOptions{
-            f.WriteString(k+" = "+GlobalConfig[k]+"\n")
-        }
+        _, err = os.Stat(*PathToLLL)
+    }
+
+    populateConfig()
+    
+    f, err := os.Create(*C3DConfig)
+    if err != nil{
+        log.Fatal("could not open config file,", err)
+    }
+    for _, k := range ConfigOptions{
+        f.WriteString(k+" = "+GlobalConfig[k]+"\n")
     }
 }
 
@@ -136,7 +139,7 @@ func Init(){
             *storageAt = "0"
        }
        EthConfig()
-       _ , peth := NewEthPEth()
+       _ , peth, _ := NewEthPEth()
        GetInfoHashStartTorrent(peth, *lookupDownloadTorrent, *storageAt)
        os.Exit(0)
     }
@@ -149,12 +152,9 @@ func Init(){
         }
         var buf bytes.Buffer
         keyData, err := ioutil.ReadFile(filename)
-        kP, err:= ethutil.GenerateNewKeyPair()
-        if err != nil{
-            log.Fatal("could not generate key")
-        }
+        kP := ethcrypto.GenerateNewKeyPair()
         priv := kP.PrivateKey
-        buf.WriteString(ethutil.Hex(priv))
+        buf.WriteString(ethutil.Bytes2Hex(priv))
         buf.WriteString("\n")
         buf.Write(keyData)
         fmt.Println(buf.String())
