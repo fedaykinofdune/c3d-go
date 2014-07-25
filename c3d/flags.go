@@ -55,6 +55,7 @@ var (
     TransmissionPort = flag.String("transmission_port", "9091", "transmission rpc port")
     C3DDir = flag.String("c3d_dir", path.Join(homeDir(), ".c3d-go"), "directory for c3d data")
     C3DConfig = flag.String("c3d_config", path.Join(*C3DDir, "c3d-go.config"), "directory for c3d data")
+    BlobDir = flag.String("blob_dir", path.Join(*C3DDir, "blobs"), "directory for c3d blobs")
     ChatPort = flag.String("chat_port", "9100", "p2p websocket chat port")
     PathToLLL = flag.String("path_to_lll", "", "absolute path to LLL compiler")
     Mine = flag.Bool("mine", false, "start mining ethereum blocks")
@@ -88,7 +89,8 @@ func readConfigFile(){
     log.Println(*C3DConfig)
     if err != nil && os.IsNotExist(err){
         log.Println("No config file. Creating now")
-        os.MkdirAll(*C3DDir, 0777)
+        os.MkdirAll(*C3DDir, 0666)
+        os.MkdirAll(*BlobDir, 0666)
         f, err := os.Create(*C3DConfig)
         if err != nil{
             log.Println("Could not create config file:", err)
@@ -120,7 +122,8 @@ func Init(){
         os.Exit(0)
     }
     if *downloadTorrent != ""{
-        DownloadTorrent(*downloadTorrent)
+        CheckStartTransmission() 
+        StartTorrent(*downloadTorrent)
         os.Exit(0)
     }
     if *isDone != ""{

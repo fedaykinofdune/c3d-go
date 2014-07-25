@@ -33,12 +33,10 @@ func callback(peth *ethpub.PEthereum, addr string, ethereum *eth.Ethereum){
 func main() {
     // parse flags.
     c3d.Init()
-
-    // check if transmission is running. if not, start 'er up
-    c3d.CheckStartTransmission()
-
     // basic ethereum config.  let's put this in a big file
     c3d.EthConfig()
+    // check if transmission is running. if not, start 'er up
+    c3d.CheckStartTransmission()    
 
     ethereum, peth := c3d.NewEthPEth()
     ethereum.Port = *c3d.EthPort

@@ -76,7 +76,7 @@ func CurrentInfo(peth *ethpub.PEthereum){
 
 
 func compileLLL(lll string) string{
-    cmd := exec.Command("serpent", "compile_lll", lll)
+    cmd := exec.Command(*PathToLLL, lll)
     var out bytes.Buffer
     cmd.Stdout = &out
     err := cmd.Run()
