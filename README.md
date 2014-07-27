@@ -8,22 +8,7 @@ More coming.
 
 ## How to play
 
-To setup, you'll have to grab the project-douglas versions of the go-ethereum and eth-go. As development on those repos continues, we need a stable repo so our APIs don't continuously break. So, do the following:
-
-```
-go get -d github.com/project-douglas/eth-go
-cd $GOPATH/src/github/project-douglas/eth-go
-git checkout pd
-go install
-
-
-go get -d github.com/project-douglas/go-ethereum/ethereum
-cd $GOPATH/src/github/project-douglas/go-ethereum/ethereum
-git checkout pd
-go install
-```
-
-That should get you our versions of the repos and install them. If you don't do `git checkout pd`, you will have the ethereum versions (not the project-douglas versions), and everything will be sure to go to shit from there :)
+`c3d-go` relies on `eth-go` and `go-ethereum` for the ethereum library and some nice client tools.  They should be installed automatically when you grab `c3d-go`, but if not, see their respective readmes at `github.com/project-douglas/eth-go` and `github.com/project-douglas/go-ethereum`
 
 Now, grab c3d-go: `go get github.com/project-douglas/c3d-go`. That will install it.  If you make changes and want to re-install, just hit `go install` in the c3d-go repo. Run it with `c3d-go`, or `$GOPATH/bin/c3d-go` if you must.  The webapp is at `http://localhost:9099`
 
