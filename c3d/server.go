@@ -4,6 +4,7 @@ import (
     "github.com/project-douglas/eth-go"
     "github.com/project-douglas/eth-go/ethpub"
     "github.com/project-douglas/eth-go/ethutil"
+    "github.com/project-douglas/eth-go/ethcrypto"
     "code.google.com/p/go.net/websocket"    
     "net/http"
     "html/template"
@@ -75,7 +76,7 @@ func (s *Session) accountsReactor(){
     ch := make(chan ethutil.React)
     reactor := s.ethereum.Reactor()
     for _, a := range s.Accounts{
-        event := "object:"+string(ethutil.FromHex(a.Addr))
+        event := "object:"+string(ethutil.Hex2Bytes(a.Addr))
         reactor.Subscribe(event, ch) // subscribe channel to all accounts
     }
     go func(){
@@ -110,7 +111,7 @@ func loadConfig(peth *ethpub.PEthereum) *Config{
 }
 
 func (g *Globals) loadSession(peth *ethpub.PEthereum, ethereum *eth.Ethereum) *Session {
-     keyRing := ethutil.GetKeyRing()
+     keyRing := g.keyMang.KeyRing()
      session := &Session{}
      g.n_sessions += 1
      g.sessions = append(g.sessions, session)
@@ -118,8 +119,8 @@ func (g *Globals) loadSession(peth *ethpub.PEthereum, ethereum *eth.Ethereum) *S
      session.peth = peth
      (*session).AccountMap = make(map[string]int)
      for i:=0;i<keyRing.Len();i++{
-        key := keyRing.Get(i)
-        addr := ethutil.Hex(key.Address())
+        key := keyRing.GetKeyPair(i)
+        addr := ethutil.Bytes2Hex(key.Address())
         priv := key.PrivateKey
         state := peth.GetStateObject(addr)
         val := state.Value()
@@ -364,7 +365,7 @@ func (s *Session) handleTransact(ws *websocket.Conn, tx map[string]interface{}){
         var err error
         if recipient == ""{
             if lang == "lll"{
-                data = compileLLL(data)
+                data = CompileLLL(data)
                 if data == ""{
                     // failed to compile
                 }
@@ -373,12 +374,12 @@ func (s *Session) handleTransact(ws *websocket.Conn, tx map[string]interface{}){
                 log.Println(len(data))
                 log.Println([]byte(data))
             }
-            p, err = (*s).peth.Create(ethutil.Hex(priv), amount, gas, gasP, data)
+            p, err = (*s).peth.Create(ethutil.Bytes2Hex(priv), amount, gas, gasP, data)
             if err != nil{
                 log.Println(err)
             }
         } else{
-            p, err = (*s).peth.Transact(ethutil.Hex(priv), recipient, amount, gas, gasP, data)
+            p, err = (*s).peth.Transact(ethutil.Bytes2Hex(priv), recipient, amount, gas, gasP, data)
             if err != nil{
                 log.Println(err)
             }
@@ -409,15 +410,16 @@ func (s *Session) handleGetStorage(ws *websocket.Conn, args map[string]interface
 type Globals struct {
     peth *ethpub.PEthereum
     eth *eth.Ethereum
+    keyMang *ethcrypto.KeyManager
 
     sessions []*Session
     n_sessions int
     sessionMap map[string]*Session
 }
 
-func StartServer(peth *ethpub.PEthereum, ethereum *eth.Ethereum){
+func StartServer(peth *ethpub.PEthereum, ethereum *eth.Ethereum, keyMang *ethcrypto.KeyManager){
     conf := loadConfig(peth)
-    g := Globals{peth:peth, eth:ethereum, n_sessions:0}
+    g := Globals{peth:peth, eth:ethereum, n_sessions:0, keyMang:keyMang}
 
     // pages
     http.HandleFunc("/", g.handleIndex) // main page

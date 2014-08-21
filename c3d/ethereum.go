@@ -6,6 +6,7 @@ import (
     "github.com/project-douglas/eth-go/ethutil"
     "github.com/project-douglas/eth-go/ethpub"
     "github.com/project-douglas/eth-go/ethlog"
+    "github.com/project-douglas/eth-go/ethcrypto"
     "github.com/project-douglas/go-ethereum/utils"
     "log"
     "bytes"
@@ -16,21 +17,35 @@ import (
 //Logging
 var logger *ethlog.Logger = ethlog.NewLogger("C3D")
 
+const (
+    ClientIdentifier = "Ethereum(PD)"
+    Version = "0.5.17"
+    Identifier = ""
+    KeyStore = "db"
+)
 
 func EthConfig() {
-    ethutil.ReadConfig(*EthConfigFile, *EthDataDir, "", "c3d-go")
-    utils.InitLogging(*EthDataDir, *EthLogFile, int(ethlog.DebugLevel), "")
+    ethutil.ReadConfig(*EthConfigFile, *EthDataDir, "c3d-go")
+    utils.InitLogging(*EthDataDir, *EthLogFile, 5, "")
 }
 
-func NewEthPEth() (*eth.Ethereum, *ethpub.PEthereum){
+func NewEthPEth() (*eth.Ethereum, *ethpub.PEthereum, *ethcrypto.KeyManager){
     // create a new ethereum node: init db, nat/upnp, ethereum struct, reactorEngine, txPool, blockChain, stateManager
-    ethereum, err := eth.New(eth.CapDefault, false)
+    db := utils.NewDatabase()
+    keyManager := utils.NewKeyManager(KeyStore, *EthDataDir, db)   
+    keyManager.Init("", 0, true)
+
+    clientIdentity := utils.NewClientIdentity(ClientIdentifier, Version, Identifier) 
+
+    ethereum, err := eth.New(db, clientIdentity, keyManager, eth.CapDefault, false)
+
+    //ethereum, err := eth.New(eth.CapDefault, false)
     if err != nil {
         log.Fatal("Could not start node: %s\n", err)
     }
     // initialize the public ethereum object. this is the interface QML gets, and it's mostly good enough for us to
     peth := ethpub.NewPEthereum(ethereum) 
-    return ethereum, peth
+    return ethereum, peth, keyManager
 }
 
 func GetStorageAt(peth *ethpub.PEthereum, contract_addr string, storage_addr string) string{
@@ -75,8 +90,8 @@ func CurrentInfo(peth *ethpub.PEthereum){
 }
 
 
-func compileLLL(lll string) string{
-    cmd := exec.Command("serpent", "compile_lll", lll)
+func CompileLLL(filename string) string{
+    cmd := exec.Command(*PathToLLL, filename)
     var out bytes.Buffer
     cmd.Stdout = &out
     err := cmd.Run()
